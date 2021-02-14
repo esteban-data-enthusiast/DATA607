@@ -1,0 +1,326 @@
+---
+title: "Simple movie recommendations based on friends ratings"
+author: "Esteban Aramayo"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+1. Overview
+2. Preparing the Data
+
+   2.1 Collecting the data through an online survey
+   
+   2.2 Loading the survey's responses into a relational database
+
+   2.3 Retrieving movie rating survey data from database
+   
+   2.4 Handling missing rating values
+   
+3. Exploring the Data
+
+   3.1 The Mean and Median ratings for each movie
+   
+   3.2 Bar chart of mean ratings per movie
+   
+
+4. Movie recommendations
+
+   4.1 Movie recommendation candidate people
+   
+   4.2 Average movie ratings to be used for movie recommendations
+   
+   4.3 Final movie recommendations
+
+
+## 1 Overview
+
+I wanted to create a simple movie recommendation system (without using machine learning models) based on ratings collected from people that I know (friends, family, classmates). The goal is to come up with at least 1 movie recommendation for each of my friends based on the ratings provided by all my friends. It is not allowed to recommend a movie to a friend if he/she already watched it.
+
+I chose six recent popular movies. I asked at least five people that I know to rate each of these movies that they have seen on a scale of 1 to 5. I took the results (observations) and stored them in a MySQL database. Loaded the information from the MySQL database into an R dataframe. Then I performed the necessary steps to clean up the data, analyze it, and come up with the appropriate movie recommendations.
+
+
+
+
+```{r}
+# if(!"tidyverse" %in% (.packages())){require(tidyverse)}
+# 
+# # load movie survey data from csv file
+# survey <- read_csv("recent_movies_ratings.csv")
+# survey
+
+```
+
+
+## 2 Preparing the Data
+
+### 2.1 Collecting the data through an online survey
+
+I selected 6 recent movies for which to get ratings for.
+
+<center><img src="file:///images/Esteban_s_Chosen_Movies_for_Survey.png" style="width: 600px;height: 400px;"/></center>
+
+I collected the movie ratings through an <a href="https://www.surveymonkey.com/r/DLBX65K">online survey</a> using "surveymonkey.com". 
+
+Below is a sample of the questions and answers provided by one of the responders.
+
+<center><img src="file:///images/Esteban_s_Recent_Movie_Rating_Survey.png" style="width: 600px;height: 600px;"/></center>
+
+
+
+Thirteen people responded to the survey. Below are the <a href="https://www.surveymonkey.com/summary/Q7xn8eZ0gWfv2OpKkmCOFnYknsWDuNPJI47tmxRgS_2FI_3D?tab_clicked=1">responses summary results</a>.
+
+<img src="file:///images/SurveyMonkey_Survey_Summary.png" style="width: 400px;height: 400px;"/>
+<img src="file:///images/SurveyMonkey_Analyze_Esteban_s_Recent_Movie_Rating_Survey.png" style="width: 400px;height: 400px;"/>
+
+
+### 2.2 Loading the survey's responses into a relational database
+
+The following tasks were performed to store the survey's responses into a MySQL relational database:
+
+* I manually downloaded and saved the response results of the online survey to a CSV file.
+* Using MySQL Workbench's "Table Data Import Wizard" feature, I loaded the data from the CSV file into a single table of a MySQL database.
+* I created multiple normalized tables to store the survey data. Those tables have the proper primary keys and foreign relationships among them. 
+* In the database, for future reporting purposes, I created a convenient physical view, which joins the normalized tables to show an overall view of the survey results.
+* Using MySQL Workbench's "Forward Engineer Database" feature, I generated an SQL script to create the "movies" schema and its corresponding objects.
+* Using SQL code, I read the data from the single table where the CSV file data was loaded, then I loaded them into the normalized tables.
+* I also created SQL scripts to create the "movies" schema on the MySQL server, create its tables and views, and populate the data in the tables.Script names are "01_create_movies_schema_and_its_objects.sql" and "02_populate_tables_in_movies_schema.sql".
+* Using MySQL Workbench's "Reverse Engineer Database" feature, I created a model of the schema and its corresponding Entity Relationship diagram.
+
+<center><img src="file:///images/MySQL_Workbench_ER_Diagram.png" style="width: 600px;height: 400px;"/></center>
+
+
+### 2.3 Retrieving movie rating survey data from database
+
+```{r}
+# Let's try using the RMySQL library to connect to MySQL server
+#install.packages('RMySQL')
+#
+# Create connection to database on MySQL server
+# if(!"RMySQL" %in% (.packages())){require(RMySQL)}
+
+# db_con <- dbConnect(RMySQL::MySQL(),
+#                  dbname = "movies",
+#                  Host = "localhost",
+#                  Port = 3306,
+#                  User = Sys.getenv('MySQL_DB_USERNAME'),
+#                  Password = Sys.getenv('MySQL_DB_PASSWORD'))
+
+# Error in .local(drv, ...) : Failed to connect to database: Error: Plugin caching_sha2_password could not be loaded: The specified module # # could not be found. Library path is '/mingw64/lib/mariadb/plugin/caching_sha2_password.dll'
+#
+
+# It does not work!! My installation of MySQL defaulted to Authentication Type = caching_sha2_password
+# The code above seems to work only with MySQL's "Standard" authentication method.
+```
+
+```{r}
+#install.packages('RMariaDB')
+
+#Load RMariaDB if it is not loaded already
+#if(!"RMariaDB" %in% (.packages())){require(RMariaDB)}
+
+
+# Use RMariaDB driver to see if the error below can be avoided:
+#
+# Error in .local(drv, ...) : Failed to connect to database: Error: Plugin caching_sha2_password could not be loaded: The specified module # # could not be found. Library path is '/mingw64/lib/mariadb/plugin/caching_sha2_password.dll'
+#
+
+# Create connection to database on MySQL server
+# db_con <- dbConnect(MariaDB(),
+#                      user = Sys.getenv('MySQL_DB_USERNAME'),
+#                      password = Sys.getenv("MYSQL_PASSWORD"),
+#                      dbname = "movies",
+#                      host = "localhost")
+
+# It does not work!! My installation of MySQL defaulted to Authentication Type = caching_sha2_password
+# The code above seems to work only with MySQL's "Standard" authentication method.
+
+```
+
+```{r}
+#install.packages('odbc')
+# set up a connection to the "movies" database on our MySQL server
+
+# To secure the user credentials we have 3 options:
+#
+#     1. Use ODBC DSN (secure)
+#     2. Use R Environment Variables (not as secure as 1. and 3. but simpler to set up)
+#     3. Use keyring package along with your OS Credential Manager (most secure method recommended for production environments)
+#
+# To make this assignment reproducible and simple I am using the 'R Environment variables' method.
+# Although method 2. is not as secure as 1. and 3, it is simpler to set up and still better than hard coding credentials in R code.
+#
+# if(!"odbc" %in% (.packages())){require(odbc)}
+# 
+# db_con <- dbConnect(odbc::odbc(),
+#                  .connection_string = "Driver={MySQL ODBC 8.0 Unicode Driver};",
+#                  Server = "localhost",
+#                  Database = "movies",
+#                  UID = Sys.getenv('MySQL_DB_USERNAME'),
+#                  PWD = Sys.getenv('MySQL_DB_PASSWORD'),
+#                  Port = 3306)
+
+
+# The RODBC driver Works with my installation of MySQL, which defaulted to Authentication Type = caching_sha2_password
+
+```
+
+
+```{r querydb, include=FALSE}
+#install.packages('RODBC')
+# NOTE: RShowDoc("RODBC", package="RODBC") provides great documentation on RODBC
+
+# The RODBC driver Works with my installation of MySQL, which defaulted to Authentication Type = caching_sha2_password
+if(!"RODBC" %in% (.packages())){require(RODBC)}
+
+# set up a connection to the "movies" database on our MySQL server
+
+# To secure the user credentials we have 3 options:
+#
+#     1. Use ODBC DSN (secure)
+#     2. Use R Environment Variables (not as secure as 1. and 3. but simpler to set up)
+#     3. Use keyring package along with your OS Credential Manager (most secure method recommended for production environments)
+#
+# To make this assignment reproducible and simple I am using the 'Use ODBC DSN' method to secure the user credentials. My DSN uses the Driver={MySQL ODBC 8.0 Unicode Driver}.
+db_con <- RODBC::odbcConnect('movies_dsn')
+
+
+# Test the connection by displaying list of available tables and views in the db
+# sqlTables(db_con, tableType = "TABLE")
+# sqlTables(db_con, tableType = "VIEW")
+
+
+# Read the movie rating survey data from the db
+movie_ratings <- sqlFetch(db_con, "movie_ratings_view")
+
+# Close the connection to the db
+odbcClose(db_con)
+
+```
+Using a view, let's take a peek at some of the movie rating records retrieved from the database.
+```{r}
+head(movie_ratings, 20L)
+```
+
+### 2.4 Handling missing rating values
+
+Because some people did not see some of the movies, the are some NA values for the rating variable, which might skew the results of the recommendations. Therefore, we can either convert NA values to 0 or perhaps replace them with the mean/median values for the particular movie. For simplicity, I converted **NA** values to **zeroes**.
+
+```{r}
+movie_ratings[is.na(movie_ratings)] <- 0
+
+head(movie_ratings, 20L)
+```
+
+
+
+
+## 3 Exploring the Data
+
+### 3.1 The Mean and Median ratings for each movie
+
+```{r loadmainlib, include=FALSE}
+if(!"tidyverse" %in% (.packages())){require(tidyverse)}
+
+# For each movie, calculate rating's mean and median
+avg_rating_by_movie <- movie_ratings %>% group_by(movie_id, movie_name) %>% summarize(rating_mean = mean(rating_value), rating_median = median(rating_value))
+```
+
+```{r statspermovie, include=TRUE}
+avg_rating_by_movie
+```
+
+### 3.2 Bar chart of mean ratings per movie
+
+```{r plotmeanpermovie, include=TRUE}
+
+# replicate original data and Factor levels in ascending order (this is to make it easier to find smallest to largest values on the graph)
+mydata <- avg_rating_by_movie
+mydata$movie_name <- factor(mydata$movie_name,
+                            levels = mydata$movie_name[order(mydata$rating_mean, decreasing = FALSE)])
+
+# Chart the movies and their rating mean values
+ggplot(data = mydata) +
+   geom_bar(
+      mapping = aes(x = movie_name, y = rating_mean), stat = "identity"
+      
+   ) +
+   labs(x = "Movies", y = "Mean ratings", title = "Mean ratings by Movie") + 
+   coord_flip()
+
+
+# Chart the movies and their rating mean values
+# ggplot(data = movie_ratings, aes(x = movie_name, y = rating_value)) + 
+#   stat_summary(fun = "mean", position = position_dodge(), geom = "bar") +
+#   labs(x = "Movies", y = "Mean ratings", title = "Mean ratings by Movie") + 
+#    coord_flip()
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1)) + coord_flip()
+
+
+```
+
+The top highest rated movie is **"Black Panther"** with a mean of **4.23**.
+
+
+
+
+## 4 Movie recommendations
+
+The approach here is as follows:
+
+* Identify those people who did not watch any of the chosen movies from the survey. Thus, they become the potential recommendation candidates.
+* For those movies which the person has not watched yet, find their average rating calculated from the provided via surevey responses by the people who did watch such movies.
+* Since the movie rating scale in the survey goes from 1 to 5 (where 1 is the lowest and 5 is the highest), we will recommend movies only if their rating was greater than 2.5 (i.e. greater than 50%). Movies recommendations with rating lower than the scale average are discarded.
+
+```{r}
+# Get people who said did not watch some of the movies (i.e. Those with "Not Watched" responses in the survey)
+recomm_candidates <- filter(movie_ratings, rating_value == 0) %>% select(person_name, movie_name, release_year, movie_id )
+
+# merge the "recommendation candidates" with the "average ratings" provided by everyone who did watch the movies
+ratings_candidates_merged <- merge(recomm_candidates, avg_rating_by_movie, by = "movie_id") %>% select(person_name, movie_name.x, release_year, rating_mean)
+
+# Since the rating scale goes from 1 to 5, build the final list of recommendations where the movie rating is greater than 2.5 (i.e. rating > 50%)
+final_recommendations <- filter(ratings_candidates_merged, rating_mean > 2.5)
+
+```
+
+
+### 4.1 Movie recommendation candidate people
+
+Below is the list of **recommendation candidate people** and the movies that they have not seen yet:
+```{r}
+rc <- recomm_candidates[order(recomm_candidates$person_name, recomm_candidates$movie_name),]
+
+#rc %>% dplyr::rename(Person_Name = person_name, Movie_Not_Seen = movie_name, Release_Year = movie_id)
+
+rc
+
+```
+
+### 4.2 Average movie ratings to be used for movie recommendations
+
+The **average ratings for all the movies** in the survey are:
+```{r}
+ar <- avg_rating_by_movie[order(avg_rating_by_movie$movie_name),]
+ar
+```
+
+### 4.3 Final movie recommendations
+
+The **final movie recommendations are only the ones where the average rating is greater than 2.5**. Movies recommendations with rating lower than the scale average are not recommended. Later in the course we will learn advanced techniques on how to perform sophisticated recommendations.
+```{r}
+#ratings_candidates_merged
+# To improve readability order by Name ascending and then by average rating descending
+fr <- final_recommendations[order(final_recommendations$person_name, -final_recommendations$rating_mean),]
+# names(fr)[names(fr)  == "person_name"] <- "Person Name"
+# names(fr)[names(fr)  == "movie_name.x"] <- "Recommended Movie"
+# names(fr)[names(fr)  == "release_year"] <- "Release Year"
+# names(fr)[names(fr)  == "rating_mean"] <- "Average Rating"
+fr
+```
+
+
+
+
