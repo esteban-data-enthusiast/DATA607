@@ -1,0 +1,258 @@
+---
+title: "Week Three - R Character Manipulation and Date Processing"
+author: "Esteban Aramayo"
+#output: github_document
+output:
+    html_document:
+        toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE)
+```
+
+```{r echo=FALSE, include=FALSE}
+library(readr)
+library(tidyverse)
+library(stringr)
+```
+
+### 1. Overview
+
+Please deliver links to an R Markdown file (in GitHub and rpubs.com) with solutions to the problems below.  You may work in a small group, but please submit separately with names of all group participants in your submission.
+
+
+
+### 2. Filtering data using Regular Expressions (regex)
+
+Using the 173 majors listed in fivethirtyeight.com’s College Majors dataset (<A href="https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/">The Economic Guide To Picking A College Major</a>), provide code that identifies the majors that contain either "DATA" or "STATISTICS".
+
+
+```{r read-538-college-majors, message=FALSE}
+
+# define the URL for the raw csv file containing major list
+majors_url <- "https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv"
+
+# read csv file and store the records into a data frame
+majors <- read_csv(majors_url)
+
+# convert the data frame to a tibble
+mt <- as_tibble(majors)
+
+# from the list of majors filter only those which contain the words DATA OR STATISTICS
+tbl2 <- mt %>% filter(grepl('DATA|STATISTICS', Major, ignore.case = TRUE))
+
+# count the total of major found in the majors list
+total_majors <- nrow(majors) # Actual total of majors in data set
+
+#An actual total of `total_majors` majors were found in the current site's data set.
+
+
+# display the list of filtered majors
+knitr::kable(tbl2, caption = 'Table: List of Majors that contain the words "DATA" or "STATISTICS"')
+
+
+```
+
+
+
+
+
+
+
+### 3 Data Transformation
+
+Write code that transforms the data below:
+
+[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+
+[13] "olive"        "salal berry"
+
+Into a format like this:
+
+c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+
+
+
+```{r}
+
+# stored the character data as is, including spaces, carriage returns, double quotes
+raw_data <- '[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+
+[13] "olive"        "salal berry"'
+
+
+# define a regex to match words surrounded by double quotes "\b\w+\s?\w*\b"
+regex_double_quote_surrounded_words <- '\\b\\w+\\s?\\w*\\b"'
+
+# extract the quoted words from the string and store them into a list
+extracted_quoted_words <- str_extract_all(raw_data, regex_double_quote_surrounded_words)
+
+# concatenate the quoted words and store them in a character vector as per the ask
+new_character_format <- paste(extracted_quoted_words, ",")
+
+
+extracted_quoted_words
+
+new_character_format
+
+```
+
+
+
+
+
+
+### 4 Additional exercises
+
+
+```{r}
+# Build a tibble with a list of sample words to be tested against the regular expressions
+dt_test <- tibble( words = c("Ohio","Pennelope","Kabbak","tomato","eleven","church","Pop","papa","Robocop","look","Pajama","noN","XXXrated"))
+```
+
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(dt_test, caption = 'Table: List of Sample words to be used to test the Regular Expressions')
+```
+
+
+The two exercises below are taken from R for Data Science, 14.3.5.1 in the on-line version:
+
+
+#### 4.1 Interpreting regular expresions
+
+
+
+Describe, in words, what these expressions will match:
+
+(.)\1\1
+
+It matches a character that repeats 3 times consecutively.
+
+```{r}
+dt_matches <- dt_test %>% dplyr::filter(str_detect(words, regex('(.)\\1\\1', ignore_case = T)))
+
+knitr::kable(dt_matches)
+
+```
+
+
+
+"(.)(.)\\2\\1"
+
+It matches two characters followed by the same two characters but in reversed order.
+
+```{r}
+dt_matches <- dt_test %>% dplyr::filter(str_detect(words, regex("(.)(.)\\2\\1", ignore_case = T)))
+
+knitr::kable(dt_matches)
+
+```
+
+
+
+(..)\1
+
+It matches two characters followed by the same two characters.
+
+```{r}
+dt_matches <- dt_test %>% dplyr::filter(str_detect(words, regex("(..)\\1", ignore_case = T)))
+
+knitr::kable(dt_matches)
+
+```
+
+
+
+
+
+
+"(.).\\1.\\1"
+
+It matches a character repeated 3 times in non-consecutive positions.
+
+```{r}
+dt_matches <- dt_test %>% dplyr::filter(str_detect(words, regex("(.).\\1.\\1", ignore_case = T)))
+
+knitr::kable(dt_matches)
+
+```
+
+
+
+
+"(.)(.)(.).*\\3\\2\\1"
+
+
+It matches 3 characters followed by the same 3 characters but in reversed order.
+
+```{r}
+dt_matches <- dt_test %>% dplyr::filter(str_detect(words, regex("(.)(.)(.).*\\3\\2\\1", ignore_case = T)))
+
+knitr::kable(dt_matches)
+
+```
+
+
+
+
+
+
+#### 4.2 Constructing regular expressions
+
+
+#### 4.2.1 Regular expression to match words that start and end with the same character.
+```{r}
+
+# define a regular expression that will match words starting and ending with the same character: \b(\w)\w*\1\b
+regex_same_1st_n_last_char <- "\\b(\\w)\\w*\\1\\b"
+
+# filter the words that match the regular expression
+dt_flc_filtered <- dt_test %>% dplyr::filter(str_detect(words, regex(regex_same_1st_n_last_char, ignore_case = T)))
+
+knitr::kable(dt_flc_filtered, caption = 'Table: List of words starting and ending with the same character')
+
+```
+
+
+
+#### 4.2.3 Regular expression to match words that contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)
+```{r}
+
+# define a regular expression that will match words that contain a repeated pair of letters:  \b(..)\w*\1\b
+regex_2_rep_letters <- "\\b(..)\\w*\\1\\b"
+
+# filter the words that match the regular expression
+dt_flc_filtered <- dt_test %>% dplyr::filter(str_detect(words, regex(regex_2_rep_letters, ignore_case = T)))
+
+knitr::kable(dt_flc_filtered, caption = 'Table: List of words that contain a repeated pair of letters')
+
+```
+
+
+
+#### 4.2.4 Regular expression to match words that contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)
+```{r}
+
+# define a regular expression that will match words that contain one letter repeated in at least three places:  ([a-z])\w*\1\w*\1
+regex_3_rep_letters <- "([a-z])\\w*\\1\\w*\\1"
+
+# filter the words that match the regular expression
+dt_flc_filtered <- dt_test %>% dplyr::filter(str_detect(words, regex(regex_3_rep_letters, ignore_case = T)))
+
+knitr::kable(dt_flc_filtered, caption = 'Table: List of words that contain one letter repeated in at least three places')
+
+```
+
+
+
+
