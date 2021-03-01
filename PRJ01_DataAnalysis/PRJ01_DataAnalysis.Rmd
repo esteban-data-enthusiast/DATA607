@@ -1,0 +1,187 @@
+---
+title: "Project 01 - Data Analysis"
+author: "ESTEBAN ARAMAYO"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    toc_float: true
+    collapsed: false
+    theme: united
+    highlight: tango
+---
+
+<H2>Overview</H2>
+
+In this project, we are given a text file with chess tournament results where the information has some structure. Our job is to create an R Markdown file that generates a .CSV file (that could for example be imported into a SQL database) with the following information for all of the players:
+
+Player’s Name, Player’s State, Total Number of Points, Player’s Pre-Rating, and Average Pre Chess Rating of Opponents
+
+For the first player, the information would be:
+Gary Hua, ON, 6.0, 1794, 1605
+
+1605 was calculated by using the pre-tournament opponents’ ratings of 1436, 1563, 1600, 1610, 1649, 1663, 1716, and dividing by the total number of games played.
+
+
+```{r load-packages, message=FALSE}
+# Libraries to be used
+library(tidyverse)
+library(data.table)
+```
+
+
+
+<H2>Read Chess Tournament Source Data</H2>
+```{r read-src-data}
+
+tourney_file_name <- "C:\\tmp\\tournamentinfo.txt"
+
+# Read the data from the tournament file and store it in a data.table (skip the first 4 rows containing unnecessary header data)
+mdt <- data.table(read_csv(tourney_file_name, col_types =  list(col_character()), col_names = c("data"),  skip = 4))
+
+
+```
+
+Let's peak into the data read from the file.
+```{r}
+# Take a peak at the data from the table
+head(mdt,10)
+```
+
+
+
+<h2>Parsing out the data</h2>
+
+Extract the lines of text corresponding to the players and their ratings.
+
+```{r parse-out-text-lines}
+
+# From the table, extract the text rows that correspond to the players (skip the dashed lines)
+players <- mdt[seq(1, nrow(mdt), 3)]
+
+# From the table, extract the text rows that correspond to the players' ratings (skip the dashed lines)
+player_ratings <- mdt[seq(2, nrow(mdt), 3)]
+
+```
+
+Show the results of the extracted lines of text.
+
+```{r}
+# take a peak at the players data lines
+head(players, 10)
+
+# take a peak at the players' ratings data lines
+head(player_ratings, 10)
+```
+
+Using regular expressions, parse out the values from each line of text.
+
+```{r message=FALSE, warning=FALSE}
+# Extract the values from the players table
+Pair_Num <- as.integer(str_extract(players$data, "\\d+"))                      # 1st sequence of numeric characters
+Player_Name <- str_trim(str_extract(players$data, "(\\w+\\s){2,3}"))           # 1st instance of 2 or 3 words followed by white space
+Total_Points <- as.numeric(str_extract(players$data, "\\d+\\.\\d+"))           # 2nd sequence of numeric characters
+Opponents <- str_extract_all(str_extract_all(players$data, "\\d+\\|"), "\\d+") # All instances of numeric characters followed by a pipe |
+
+# Extract the values from the player ratings table
+Player_State <- str_extract(player_ratings$data, "\\w+")              # 1st word on the line
+Pre_Rating <- as.integer(str_extract(str_extract(player_ratings$data, "[^\\d]\\d{3,4}[^\\d]"), "\\d+")) # 1st instance of a number of at least 3 but no more than 4 digits 
+Post_Rating <- as.integer(str_extract(str_extract(player_ratings$data, "->\\s*\\d{3,4}"), "\\d+")) # 1st instance of a number of at least 3 but no more than 4 digits, which come after "-> ".
+
+```
+
+<h2>Calculate the Arpad Elo's mean rating</h2>
+
+Calculate the Arpad Elo's mean rating for each player's opponents.
+
+For this, we traverse the vector of Pre-Ratings of each player and get the pre-ratings of their opponents. Because the opponents' IDs (Pair number) are stored in a vector inside a vector, we need to flatten it before we can use the values from the inner vector. Using those IDs, we look up the pre-rating corresponding to each of those IDs (Pair number) and then calculate the mean of all of them. We round the mean to the nearest point (no decimal digits). 
+
+```{r}
+# Calculate the Arpad Elo's mean rating for each player's opponents
+total_Players = nrow(players)
+
+Avg_Opponent_Pre_Rating <- total_Players
+
+for (i in 1:total_Players) { 
+  # for each player
+  Avg_Opponent_Pre_Rating[i] <- round(
+    mean(
+      Pre_Rating[as.numeric(
+        flatten(
+          Opponents[Pair_Num[i]]
+        )
+        )]
+    ), digits = 0
+  ) 
+}
+```
+
+
+<h2>Build a table with all the final results</h2>
+
+```{r}
+
+# build a table to be used as the source for the CSV file
+DT = data.table(
+  Player_Name,
+  Player_State,
+  Total_Points,
+  Pre_Rating,
+  Avg_Opponent_Pre_Rating
+)
+
+```
+
+```{r echo=FALSE}
+knitr::kable(DT[1:10, ], caption = 'Final results table')
+```
+
+
+
+<h2>Export the results to a CSV file </h2>
+```{r}
+# Write the data to CSV file
+write_csv(
+  x = DT,
+  file = "c:\\tmp\\chess_tournament_player_output.csv",
+  quote_escape = "double"
+)
+```
+
+<H2>Player scored the most points relative expected result</H2>
+```{r}
+
+# Which player scored the most points relative to his or her expected result?
+Point_Diff <- Post_Rating - Pre_Rating
+
+elo_rating = data.table (
+  Player_Name,
+  Pre_Rating,
+  Post_Rating,
+  Point_Diff,
+  Avg_Opponent_Pre_Rating
+)
+
+
+elo_rating <- elo_rating[order(-Point_Diff)]
+
+```
+
+```{r echo=FALSE}
+knitr::kable(elo_rating, caption = 'ELO ratings')
+```
+
+PLayer with the highest difference between his/her Pre-rating and Post-rating
+
+
+```{r echo=FALSE}
+knitr::kable(elo_rating[1], caption = 'ELO ratings')
+```
+
+
+
+
+
+
+
