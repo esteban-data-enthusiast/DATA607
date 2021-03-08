@@ -1,0 +1,156 @@
+---
+title: "Week Five - Working with Tidy Data"
+author: "Esteban Aramayo"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    #number_sections: true
+    toc_float: true
+    collapsed: false
+    theme: united
+    highlight: tango
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE, message = FALSE)
+```
+
+## 1. Overview
+
+Create a .CSV file (or optionally, a MySQL database!) that includes all of the information above. Use a “wide” structure similar to how the information appears below, so that tidying and transformations can be used on the data.
+
+<center><img src="file:///untidy_arrivals.png" style="width: 400px;height: 200px;"/></center>
+
+
+
+
+```{r load-packages, message=FALSE}
+# Libraries to be used
+library(tidyverse)
+```
+
+
+## 2. Read untidy data
+
+### 2.1 Read the arrival data
+
+Read the arrival data from your .CSV file
+
+```{r}
+src_file_path <- "C:\\tmp\\Airline_Arrival_Delays.csv"
+untidy_flights <- read_csv(src_file_path)
+```
+
+### 2.2 Peak at the read data
+
+Take a peak at the data read from the CSV file.
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(head(untidy_flights), caption = 'Table: Untidy data for flight arrivals')
+```
+
+
+## 3 Tidy the data
+
+Use "tidyr" and "dplyr" as needed to tidy up and transform the data
+
+```{r}
+flights <- untidy_flights %>% 
+  # remove blank lines
+  drop_na() %>%
+  # change format from wide to long to tidy up data
+  pivot_longer(`Los Angeles`:`Seattle`, names_to = "destination", values_to = "count") %>%
+    # rename column names
+  rename(airline = Airline, flight_status = `Flight Status`)
+```
+
+Show a glimpse of the transformed data.
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(head(flights, 10), caption = 'Table: Tidy data for flight arrivals')
+```
+
+
+
+## 4 Perform data analysis
+
+Perform data analysis to compare the arrival delays for the two airlines.
+
+### 4.1 Build list of delayed flights
+```{r}
+delayed_flights <- flights %>%
+  filter(flight_status == "delayed")
+```
+
+
+### 4.2 Overall delays per Airline
+
+Which airline has the most overall delays and which one the least?
+
+```{r}
+by_airline <- delayed_flights %>%
+  group_by(airline) %>%
+  summarise(total_count = sum(count)) %>%
+  arrange(desc(total_count))
+```
+
+Overall, **"AM West"** airline has the **highest** number of delays compared to **"ALASKA"**, which has the **lowest**.
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(by_airline, caption = 'Table: Total delays per airline')
+```
+
+
+We can see the discrepancy between each airline's delays graphically
+
+```{r}
+ggplot(by_airline, aes(x = airline, y = total_count, fill = airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  ggtitle("Total Overall Flight Delays Per Airline") +
+  labs(x = "Airport Destinations", y = "Total Delays") +
+  theme(legend.position = "none")
+```
+
+
+
+
+
+### 4.3 Delays per destination and airline
+
+Which airport destinations had the most and least delays?
+
+```{r}
+by_destination <- delayed_flights %>%
+  group_by(destination, airline) %>%
+   summarise(total_count = sum(count)) %>%
+   arrange(desc(total_count))
+```
+
+
+Overall, the **Phoenix** destination has **highest** number of delays (**"AM West"** airline) as well as the **lowest** number of delays (*"ALASKA"* airline).
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(by_destination, caption = 'Table: Total delays per destination per airline in descending order')
+```
+
+
+Below is the graphical representation of delays per destination in descending order.
+
+```{r}
+ggplot(by_destination, aes(x = reorder(destination, total_count), y = total_count, fill = airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  ggtitle("Total Flight Delays Per Destination Per Airline") +
+  labs(x = "Airport Destinations", y = "Total Delays")
+```  
+
+## 5. Conclusion
+
+It was demonstrated that the packages "tidyr" and "dplyr" can be extremely useful to tidy up and transform the data.
+
+
+
+
