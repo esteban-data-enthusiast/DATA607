@@ -1,0 +1,8 @@
+Eric Hirsch 
+Eric Hirsch - Untidy Data 2
+COLLAPSE
+Overall Rating:
+12345
+12345
+Since we can use a dataset we ourselves found, I'm going to post this dataset which I would like to tidy (perhaps one of you will choose it as well). It is Bureau of Labor Statistics data on occupations and industries for the US for a given year (there is 2015 to 2020 in separate files). The file is wide - industries run down the left and occupations run across the top. The industries on the left are repeated 6 times for Male, Female, Black, White, Asian, and total. Some of the rows are there to sum up other rows. Much you could do here - take a year and identify industries and occupations by gender - any surprises? What you expected? Do occupations by gender stay relatively consistent whatever industry you are in? Or does industry matter? If you are ambitious you could read in several years and do a trend analysis. 
+https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-02-23/bls-2020.xlsx

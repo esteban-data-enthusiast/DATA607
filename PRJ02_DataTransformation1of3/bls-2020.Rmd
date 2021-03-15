@@ -1,0 +1,211 @@
+---
+title: "Project 2 - Data Transformation 1 of 3"
+author: "ESTEBAN ARAMAYO"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    #number_sections: true
+    toc_float: true
+    collapsed: false
+    theme: united
+    highlight: tango
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE, message = FALSE)
+```
+
+
+
+
+## Step 1: Problem Statement
+
+In this project the goal is to practice data transformation applied to untidy data. For this purpose, I chose a classmate's untidy dataset from our discussion board. Using such dataset, the following items will be addressed:
+
+
+* Create a .CSV or .XLSX file (or optionally, a MySQL database!) that includes all of the information included in the dataset. You’re encouraged to use a “wide” structure similar to how the information appears in the discussion item, so that you can practice tidying and transformations as described below.
+* Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data. [Most of your grade will be based on this step!]
+* Perform the analysis requested in the discussion item.
+
+
+### About the dataset and the analysis on it
+
+The dataset is Bureau of Labor Statistics data on occupations and industries for the US for a given year (there is 2015 to 2020 in separate files, but year 2020 was chosen). The source file can be found at: https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-02-23/bls-2020.xlsx
+
+The file is wide - industries run down the left and occupations run across the top. The industries on the left are repeated 6 times for Male, Female, Black, White, Asian, and total. Some of the rows are there to sum up other rows. 
+
+Much you could do here - take a year and identify industries and occupations by gender - any surprises? 
+What you expected? Do occupations by gender stay relatively consistent whatever industry you are in? 
+Or does industry matter? If you are ambitious you could read in several years and do a trend analysis. 
+
+
+## Step 2: Data Collection and Wrangling
+
+```{r load-packages, message=FALSE}
+# Packages to be used
+library(tidyverse)
+library(readxl)
+```
+
+
+Read the Bureau of Labor Statistics data
+
+
+Let's read and display the raw data
+
+```{r}
+# Read data from Excel file
+xl_file_path <- "C:\\tmp\\bls-2020.xlsx"
+
+# Read entire data set
+bls_raw_data <- readxl::read_excel(xl_file_path,
+                                       sheet = "cpsaat17",
+                                       )
+# Display some of the raw data
+head(bls_raw_data, 20)
+```
+
+
+Because we are interested in analyzing the data at the sex/gender level, as we read the data from the file, we can perform an initial in flight cleanup as follows:
+
+* Read only the rows for male and female groups
+* Skip all the rows before the target groups to avoid unnecessary cleanup later
+* Since each of the groups of rows in the file have 19 rows, read only the corresponding 19 rows for each sex group.
+
+
+```{r}
+
+# The column names in the Excel file are too long and are multi-lined, 
+# Because the existing headers cannot be used, define new ones.
+bls_col_names <- c("Industry","Total_Employed","Management_Business_Financial",
+                   "Professional","Protective_Services",
+                   "Non_Protective_Services",
+                   "Sales_Occupations","Office_Admin_Support",
+                   "Farming_Fishing_Forestry",
+                   "Construction_Extraction","Intallation_Maintenance_Repair",
+                   "Production_Occupations","Transportation")
+
+#Define list of Industry Categories that will be added to the data
+ind_cats <- c(
+"Agriculture and related"
+,"Mining, quarrying, and oil and gas extraction"
+,"Construction"
+,"Manufacturing"
+,"Manufacturing"
+,"Wholesale and retail trade"
+,"Wholesale and retail trade"
+,"Transportation and utilities"
+,"Information"
+,"Financial activities"
+,"Professional and business services"
+,"Education and health services"
+,"Leisure and hospitality"
+,"Other services"
+,"Other services"
+,"Public administration"
+)
+
+# Define list of row names, which contain Totals. Those will need to be removed.
+totals_row_names <- c("Manufacturing",
+                      "Wholesale and retail trade",
+                      "Other services")
+
+```
+
+
+
+```{r}
+# From the entire data set, we are only interested in getting employment data by sex/gender
+men_bls_raw_data <- readxl::read_excel(xl_file_path,
+                                       sheet = "cpsaat17",
+                                       col_names = bls_col_names,
+                                       skip = 29, n_max = 19)
+
+women_bls_raw_data <- readxl::read_excel(xl_file_path,
+                                         sheet = "cpsaat17",
+                                         col_names = bls_col_names,
+                                         skip = 50,
+                                         n_max = 19)
+
+```
+
+Let's take a look at the partially cleaned data.
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(head(men_bls_raw_data), caption = 'Table: Untidy data for men employment')
+knitr::kable(head(women_bls_raw_data), caption = 'Table: Untidy data for women employment')
+```
+
+
+
+Additional cleanup need to be performed on the data:
+
+* Rows containing totals need to be removed
+* The industry column needs to be split into two columns Industry and Industry Category
+
+
+```{r}
+
+# Perform additional data wrangling
+
+men_bls_data <- men_bls_raw_data %>%
+  #Remove rows containing totals
+  filter(!Industry %in% totals_row_names) %>%  
+  #Add new variable for Industry Category
+  mutate(Industry_Category = ind_cats)
+
+women_bls_data <- women_bls_raw_data %>%
+  #Remove rows containing totals
+  filter(!Industry %in% totals_row_names) %>%
+  #Add new variable for Industry Category
+  mutate(Industry_Category = ind_cats)
+
+```
+
+
+Let's take a look at the cleaned up data.
+
+```{r, results=TRUE, echo=FALSE}
+knitr::kable(head(men_bls_data), caption = 'Table: Tidy data for men employment')
+knitr::kable(head(women_bls_data), caption = 'Table: Tidy data for women employment')
+```
+
+
+
+## Step 3: Visualize & Summarize Data
+
+Much you could do here - take a year and identify industries and occupations by gender - any surprises? 
+What you expected? Do occupations by gender stay relatively consistent whatever industry you are in? 
+Or does industry matter? If you are ambitious you could read in several years and do a trend analysis. 
+
+```{r, fig.show='hold'}
+ggplot(men_bls_data, aes(x = reorder(Industry, Total_Employed), y = Total_Employed, fill = Industry)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ggtitle("Men Employment by Industry") +
+  labs(x = "Industry", y = "Total Employed") +
+  theme(legend.position = "none")
+
+ggplot(women_bls_data, aes(x = reorder(Industry, Total_Employed), y = Total_Employed, fill = Industry)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ggtitle("Women Employment by Industry") +
+  labs(x = "Industry", y = "Total Employed") +
+  theme(legend.position = "none")
+```
+
+From the graph above we can see that the total average number of employed people per industry is very different for men vs women.
+We can see that,
+
+* The highest number number of employed men are in the "Professional and business services" industry, while women are in "Education and health services".
+* The lowest number number of employed men are in the "Private Household services" industry, while women are in "Mining, quarrying, and oil and gas extraction".
+
+
+
+## Step 4: Communication of Results
+
+In this project I used the package "readxl" to read the data from an Excel source. This package's pre-processing parameters helped to partially pre-clean up the file while reading it into R. Using its very useful parameters became an effective tool to prepare the data for analysis. I also used the "dplyr" package to perform additional data wrangling.
+Both packages proved to be very useful in preparing tidy data for data analysis.
+
