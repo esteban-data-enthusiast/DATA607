@@ -1,0 +1,61 @@
+{
+    "Books": [
+        {
+            "BookTitle": "The Data Warehouse Lifecycle Toolkit 2nd Edition",
+            "BookISBN13": "978-0470149775",
+            "BookISBN10": "0470149779",
+            "Publisher": "Wiley; 2nd edition (January 10, 2008)",
+            "Pages": 672,
+            "Authors": [
+                {
+                    "Author": "Ralph Kimball"
+                },
+                {
+                    "Author": "Margy Ross"
+                },
+                {
+                    "Author": "Warren Thornthwaite"
+                },
+                {
+                    "Author": "Joy Mundy"
+                },
+                {
+                    "Author": "Bob Becker"
+                }
+            ]
+        },
+        {
+            "BookTitle": "T-SQL Window Functions: For data analysis and beyond (Developer Reference) 2nd Edition",
+            "BookISBN13": "978-0135861448",
+            "BookISBN10": "0135861446",
+            "Publisher": "Microsoft Press; 2nd edition (November 4, 2019)",
+            "Pages": 352,
+            "Authors": [
+                {
+                    "Author": "Itzik Ben-Gan"
+                }
+            ]
+        },
+        {
+            "BookTitle": "Microsoft Power BI Quick Start Guide: Build dashboards and visualizations to make your data come to life",
+            "BookISBN13": "978-1789138221",
+            "BookISBN10": "1789138221",
+            "Publisher": "Packt Publishing (July 30, 2018)",
+            "Pages": 200,
+            "Authors": [
+                {
+                    "Author": "Devin Knight"
+                },
+                {
+                    "Author": "Brian Knight"
+                },
+                {
+                    "Author": "Mitchell Pearson"
+                },
+                {
+                    "Author": "Manuel Quintana"
+                }
+            ]
+        }
+    ]
+}
