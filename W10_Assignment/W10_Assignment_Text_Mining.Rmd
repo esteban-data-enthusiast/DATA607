@@ -1,0 +1,180 @@
+---
+title: "Week 10 Assignment - Text Mining"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Assignment Description
+
+In Text Mining with R, Chapter 2 looks at Sentiment Analysis.  In this assignment, you should start by getting the primary example code from chapter 2 working in an R Markdown document.  You should provide a citation to this base code.  You’re then asked to extend the code in two ways:
+
+1) Work with a different corpus of your choosing, and
+2) Incorporate at least one additional sentiment lexicon (possibly from another R package that you’ve found through research).
+
+As usual, please submit links to both an .Rmd file posted in your GitHub repository and to your code on rpubs.com.  You make work on a small team on this assignment.
+
+
+### Our Datasets
+
+
+**Sentiment Analysis of US Financial News Headlines Data**
+
+For this assignment I am going to perform a sentiment analysis on US Financial News Headlines data, which were obtained from Kaggle.com at the address below:
+
+https://www.kaggle.com/notlucasp/financial-news-headlines
+
+Context
+
+The datasets consist of 3 sets scraped from CNBC, the Guardian, and Reuters official websites, the headlines in these datasets reflects the overview of the U.S. economy and stock market every day for the past year to 2 years.
+
+Content
+
+* Data scraped from CNBC contains the headlines, last updated date, and the preview text of articles from the end of December 2017 to July 19th, 2020.
+* Data scraped from the Guardian Business contains the headlines and last updated date of articles from the end of December 2017 to July 19th, 2020 since the Guardian Business does not offer preview text.
+* Data scraped from Reuters contains the headlines, last updated date, and the preview text of articles from the end of March 2018 to July 19th, 2020.
+
+
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidytext)
+library(textdata)    # Needed for loughran lexicon
+library(ggplot2)
+```
+
+Let's use the loughran lexicon to perform the sentiment analysis
+
+```{r, message=FALSE}
+loughran_sentiments <- get_sentiments("loughran")
+
+```
+
+
+Let's take a peak at the sentiments from the "loughran" lexicon
+
+```{r, message=FALSE}
+loughran_sentiments 
+```
+
+
+### Read the data
+```{r, message=FALSE}
+cnbc_csv <- read_csv('cnbc_headlines.csv')
+
+head(cnbc_csv, 10)
+
+```
+
+
+```{r, message=FALSE}
+
+# Remove all rows where all the column values are blank
+cnbc_headlines <- cnbc_csv[rowSums(is.na(cnbc_csv)) != ncol(cnbc_csv), ]
+
+head(cnbc_headlines)
+
+```
+
+
+
+### Sentiment Analysis with Inner Join
+
+
+First, we need to take the text of the headlines and convert the text to the tidy format using unnest_tokens(). Let’s also set up a column to keep track of which headline each word comes from.
+
+
+Add a new columns to the dataframe containing the Headline Date and Month (YYY-MM)
+
+```{r, message=FALSE}
+ # Add a new column to the dataframe containing the Headline Date
+
+cnbc_headlines <- cnbc_headlines %>%
+  rowwise() %>%
+  mutate(Headline_Date = as.Date(sub(".*, ","",Time), format = "%d %B %Y"),
+         Headline_YYYYMM = format( as.Date(sub(".*, ","",Time), format = "%d %B %Y"), "%Y-%m")
+         )
+
+```
+
+
+Convert headlines to tidytext format
+
+
+```{r}
+
+tidy_cnbc_headlines <- cnbc_headlines %>%
+  select(Headline_YYYYMM, Headline_Date, Headlines) %>%
+  mutate(linenumber = row_number()) %>%
+  unnest_tokens(output = word, input = Headlines, token = "words", format = "text", to_lower = TRUE)
+```
+
+
+First, we find a sentiment score for each word using the "loughran" lexicon and inner_join().
+
+Next, we count up how many positive and negative words there are in each headline.
+
+We then use spread() so that we have negative and positive sentiment in separate columns, and lastly calculate a net sentiment (positive - negative).
+
+
+```{r, message=FALSE}
+cnbc_sentiment <- tidy_cnbc_headlines %>%
+  inner_join(loughran_sentiments) %>%
+  count(Headline_YYYYMM, Headline_Date, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+  
+```
+
+
+```{r}
+
+ggplot(cnbc_sentiment, aes(Headline_YYYYMM, sentiment)) +
+  geom_col(show.legend = FALSE) +
+  #facet_wrap(~Headline_YYYYMM, ncol = 4, scales = "free_x")
+  coord_flip()
+
+```
+
+**Most Common Positive and Negative Words**
+
+One advantage of having the data frame with both sentiment and word is that we can analyze word counts that contribute to each sentiment. By implementing count() here with arguments of both word and sentiment, we find out how much each word contributed to each sentiment.
+
+
+```{r, message=FALSE}
+
+loughran_word_counts <- tidy_cnbc_headlines %>%
+  inner_join(get_sentiments("loughran")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+loughran_word_counts
+```
+
+
+This can be shown visually, and we can pipe straight into ggplot2, if we like, because of the way we are consistently using tools built for handling tidy data frames
+
+
+```{r, message=FALSE}
+
+loughran_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+
+```
+
+
+
+
+
