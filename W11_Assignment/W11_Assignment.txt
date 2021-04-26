@@ -1,0 +1,106 @@
+Overview
+--------
+
+This week, we'll introduce recommender systems, which are arguably the most important current "commercialization" of data science!
+
+Your discussion and assignment are combined into a single item this week.  You're not expected to write any code in your analysis.  But since this is a combined discussion/assignment, you should treat this as a more indepth discussion.  You should include at least one citatio
+
+
+Reading
+-------
+
+Please read:
+
+Data Science for Business, Chapter 11.
+
+
+
+Supplementary Material
+----------------------
+
+Here are some good resources to learn more about Recommender Systems:
+
+Chapters 2 and 3 of A Programmer's Guide to Data Mining, which is freely available here.
+	http://www.guidetodatamining.com/
+
+The code examples are in Python. The book's Python code can be downloaded from:
+	https://github.com/zacharski/pg2dm-python
+
+
+A somewhat different presentation of the same material can be found in Mining Massive Data Sets, chapter 9: “Recommender Systems,” freely downloadable here. 
+
+https://web.stanford.edu/class/cs246/
+
+http://infolab.stanford.edu/~ullman/mmds/ch9.pdf
+
+
+--------------------------
+
+For students who want to build out an R-based Recommender System, the recommenderlab package provides excellent support.  Implementing a basic recommender could be an excellent final project!
+
+https://cran.r-project.org/web/packages/recommenderlab/index.html
+
+https://cran.r-project.org/web/packages/recommenderlab/vignettes/recommenderlab.pdf
+
+--------------------------
+
+Discussion/Assignment 12: Recommender Systems
+
+Building the Next New York Times Recommendation Engine - The New York Times.pdf
+https://bbhosted.cuny.edu/bbcswebdav/pid-54556684-dt-content-rid-425095306_1/xid-425095306_1
+ 
+Amazon-Recommendations Item to Item Collaborative Filtering.pdf
+https://bbhosted.cuny.edu/bbcswebdav/pid-54556684-dt-content-rid-425095307_1/xid-425095307_1
+
+ 
+Your task is to analyze an existing recommender system that you find interesting.  You should:
+
+Perform a Scenario Design analysis as described below.  Consider whether it makes sense for your selected recommender system to perform scenario design twice, once for the organization (e.g. Amazon.com) and once for the organization's customers.
+Attempt to reverse engineer what you can about the site, from the site interface and any available information that you can find on the Internet or elsewhere.
+Include specific recommendations about how to improve the site's recommendation capabilities going forward. 
+Create your report using an R Markdown file, and create a discussion thread with a link to the GitHub repo where your Markdown file notebook resides.  You are not expected to need to write code for this discussion assignment.
+Here are two examples of the kinds of papers that might be helpful backgrounders for your research in #2 above (if you had chosen amazon.com or nytimes.com as your web site):
+
+IEEE Internet Computing, Greg Linden, Brent Smith, and Jeremy York (2003): Amazon.com Recommendations:  Item-to-Item Collaborative Filtering.
+https://datajobs.com/data-science-repo/Recommender-Systems-[Amazon].pdf
+
+Alex Spangher (2015): Building the Next New York Times Recommendation Engine. 
+https://open.blogs.nytimes.com/2015/08/11/building-the-next-new-york-times-recommendation-engine/
+
+--------------------------
+
+How to Perform a Scenario Analysis (review)
+
+Scenario Design is an easy-to-use “three question framework” that helps you in making sure that the information in your analysis work takes UX (user experience) into account:
+
+
+
+                   3) How can you help them 
+                      accomplish those goals
+
+                            Scenario
+                             Design
+
+           1) Who are your            2) What are their
+              target users?              key goals?
+
+
+
+Source: “Scenario Design:  A Disciplined Approach to Customer Experience,” Bruce D. Temkin, Forrester Research, 2004.  Temkin notes that before applying Scenario Design, one might ask, “What functionality should we offer?”  After applying Scenario Design, one might instead ask, “What user goals should we serve?”
+
+Your task is to:
+
+Identify a recommender system web site, then
+Answer the three scenario design questions for this web site.  
+This process of guessing/reverse engineering, while inexact, will help you build out your own ability to better account for “user needs” in designing recommender systems going forward.  Being able to place the customer first in your mind is a “soft skill” that is highly valued in the technical marketplace.
+
+You may work in a small group on this discussion assignment!  Please make your initial draft post (which includes a link to your GitHub hosted R Markdown file before our meetup on Wednesday, and provide your final post and feedback to at least one of your class mates’ posts before end of day on Sunday.  Your feedback should include at least one additional reference and/or constructive suggestion.
+
+
+
+
+
+
+
+
+
