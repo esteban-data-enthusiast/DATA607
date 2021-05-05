@@ -1,0 +1,14 @@
+Project 4: Document Classification
+
+It can be useful to be able to classify new "test" documents using already classified "training" documents.  A common example is using a corpus of labeled spam and ham (non-spam) e-mails to predict whether or not a new document is spam.  
+
+For this project, you can start with a spam/ham dataset, then predict the class of new documents (either withheld from the training dataset or from another source such as your own spam folder).   One example corpus:   https://spamassassin.apache.org/old/publiccorpus/
+
+For more adventurous students, you are welcome (encouraged!) to come up with a different set of documents (including scraped web pages!?) that have already been classified (e.g. tagged), then analyze these documents to predict how new documents should be classified.
+
+New!  Project 4 extra credit!  Students who use the relatively new tidymodels and textrecipes packages to complete their Project 4 work will automatically receive 5 extra credit points.  tidymodels is a significant improvement over Max Kuhn's older caret package.  Here are some resources to help you get up to speed on tidymodels and textrecipes.
+
+Tidy Modeling with R, Max Kuhn and Julia Silge, https://www.tmwr.org/.  Julia Silge has also done a number of tidymodels screencasts, including here: https://www.youtube.com/watch?v=BgWCuyrwD1s
+https://github.com/tidymodels/textrecipes
+DataCamp course, Modeling with TidyModels in R, https://learn.datacamp.com/courses/modeling-with-tidymodels-in-r
+This assignment is due end of day on Saturday.  You may work in a small team if you want.  We will look at all of your solutions in our meetup next Wednesday.

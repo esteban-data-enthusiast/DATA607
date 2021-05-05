@@ -1,0 +1,289 @@
+---
+title: "Project 4 - Document Classification"
+author: "Esteban Aramayo"
+date: "5/2/2021"
+output:
+  html_document:
+    toc: true
+    #number_sections: true
+    toc_float: true
+    collapsed: false
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, cache.lazy = FALSE, warning = FALSE,
+                      message = FALSE, echo = TRUE, dpi = 180,
+                      fig.width = 8, fig.height = 5)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(parsnip)
+```
+
+
+
+## Project Overview
+
+It can be useful to be able to classify new "test" documents using already classified "training" documents.  A common example is using a corpus of labeled spam and ham (non-spam) e-mails to predict whether or not a new document is spam.  
+
+For this project, we will take a spam/ham dataset, then predict the class of new documents (either withheld from the training dataset or from another source such as your own spam folder).   
+
+The corpus to be used was downloaded from:   https://spamassassin.apache.org/old/publiccorpus/
+
+Out of the available sample files, I downloaded the following two:
+
+* 20050311_spam_2.tar.bz2
+* 20050311_spam_2.tar.bz2
+
+
+## Reading data from the files
+
+I extracted the files from the test files and placed them in separate directories.
+
+Read the data from the extracted files and store them in dataframes.
+
+```{r}
+
+# the following function reads multiple files into a single data frame
+load_data <- function(path) {
+  file_list = list.files(path)
+  docs<- NA
+  for(i in 1:length(file_list))
+  {
+    filepath <- paste0(path, "/", file_list[1])  
+    text <- readLines(filepath)
+    list1<- list(paste(text, collapse="\n"))
+    docs <- c(docs,list1)
+  }
+  as.data.frame(unlist(docs))
+}
+
+# define directory paths where files were extracted
+ham_dir <- 'C:\\Users\\Esteban\\OneDrive\\edu\\cuny\\Courses\\S1_2021_01_Spring\\DATA607\\Projects\\PRJ04_DocumentClassification\\easy_ham_2\\'
+spam_dir <- 'C:\\Users\\Esteban\\OneDrive\\edu\\cuny\\Courses\\S1_2021_01_Spring\\DATA607\\Projects\\PRJ04_DocumentClassification\\spam_2\\'
+
+# load the documents from the ham files
+ham_df <- load_data(ham_dir) %>%
+  drop_na() %>%
+  mutate(doc_type = as.factor("ham"))
+
+# load the documents from the spam files
+spam_df <- load_data(spam_dir)%>%
+  drop_na() %>%
+  mutate(doc_type = as.factor("spam"))
+
+# combine the ham documents with the spam ones into a single dataframe
+ham_spam_df <- dplyr::bind_rows(ham_df, spam_df)
+
+# rename the columns of the dataframe
+colnames(ham_spam_df) <- c("doc_text", "doc_type")
+```
+
+### Shuffle the data
+
+Shuffle the rows of the dataframe to prevent any biases in the ordering
+of the dataset, which will be critical when we split the dataset into
+training data and test data
+
+```{r}
+# set a random seed so that our reordering work is reproducible
+set.seed(2021)
+# use the sample() function to shuffle the row indices of the ham_spam_df dataset
+random_rows <- sample(nrow(ham_spam_df))
+# use this random vector to reorder the ham_spam_df dataset
+ham_spam_df <- ham_spam_df[random_rows,]
+```
+
+Let's take a peak at the combined and shuffled ham/spam data
+
+```{r}
+head(ham_spam_df)
+```
+
+
+
+
+## Data Resampling
+
+Let's create the training and test datasets for model fitting and evaluation.
+
+Let's use 75% of the data for training the model and 25% for testing the model.
+
+
+```{r}
+# Create data split object
+ham_spam_split <- initial_split(ham_spam_df, prop = 0.75,
+                     strata = doc_type)
+
+# Create the training data
+ham_spam_training <- ham_spam_split %>%
+   training()
+
+# Create the test data
+ham_spam_test <- ham_spam_split %>%
+   testing()
+
+# Check the number of rows
+nrow(ham_spam_training)
+nrow(ham_spam_test)
+
+```
+
+
+## Fitting a logistic regression model
+
+
+### Specifying a logistic regression model
+
+Let's define a logistic regression model, which should use the "glm" engine, which should work in "classification" mode since we are going to classify documents as ham or spam.
+
+```{r}
+
+# Specify a logistic regression model
+logistic_model <- parsnip::logistic_reg() %>%
+# Set the engine
+parsnip::set_engine('glm') %>%
+# Set the mode
+parsnip::set_mode('classification')
+
+```
+
+
+### Model fitting
+
+Using the parsnip's fit function, let's define a logistic regression object and **train a model** to predict ham/spam classification using the "doc_text" as predictor variable from the hamp_spam_df data.
+
+```{r}
+
+# Fit to training data
+logistic_fit <- logistic_model %>%
+   parsnip::fit(doc_type ~ doc_text,
+       data = ham_spam_training)
+
+# Print model fit object
+logistic_fit
+
+```
+
+
+
+## Combining test dataset results
+
+Let's evaluate our model's performance on the **test dataset**.
+
+
+### Predicting outcome categories
+
+Before calculating classification metrics such as sensitivity or specificity, let's create a results tibble with the required columns for yardstick metric functions.
+
+```{r}
+# Predict outcome categories
+class_preds <- predict(logistic_fit, new_data = ham_spam_test,
+                        type = 'class')
+
+class_preds
+```
+
+### Estimated probabilities
+
+```{r}
+# Obtain estimated probabilities for each outcome value -->
+prob_preds <- predict(logistic_fit, new_data = ham_spam_test,
+                      type = 'prob')
+```
+
+Let's take a peak at the estimated probabilities
+```{r}
+prob_preds
+```
+
+
+
+### Combining results
+
+```{r}
+# Combine test set results
+ham_spam_results <- ham_spam_test %>%
+select(doc_type) %>%
+bind_cols(class_preds, prob_preds)
+```
+
+### View the results
+
+```{r}
+# View results tibble
+ham_spam_results
+```
+
+
+
+
+## Assessing model fit
+
+### Calculate the confusion matrix
+```{r}
+# Calculate the confusion matrix
+yardstick::conf_mat(ham_spam_results, truth = doc_type,
+   estimate = .pred_class)
+```
+
+
+### Calculate the accuracy
+```{r}
+# Calculate the accuracy
+accuracy(ham_spam_results, doc_type,
+   estimate = .pred_class)
+```
+
+
+### Calculate the sensitivity
+```{r}
+# Calculate the sensitivity
+sensitivity(ham_spam_results, doc_type,
+     .pred_class)
+```
+
+
+### Calculate the specificity
+```{r}
+# Calculate the specificity
+specificity(ham_spam_results,doc_type,
+.pred_class)
+```
+
+
+### Create a custom metric function
+```{r}
+# Create a custom metric function
+ham_spam_metrics <- metric_set(accuracy, sens, spec)
+```
+
+### Calculate metrics using model results tibble
+```{r}
+# Calculate metrics using model results tibble
+ham_spam_metrics(ham_spam_results, truth = doc_type,
+                estimate = .pred_class)
+```
+
+### Create a confusion matrix
+```{r}
+# Create a confusion matrix
+conf_mat(ham_spam_results,
+         truth = doc_type,
+         estimate = .pred_class) %>%
+# Pass to the summary() function
+   summary()
+```
+
+
+## Conclusion
+
+In this project I attempted to use a classification predictive model to classify documents as spam or ham from a corpus of documents downloaded from the Web. I used the **"tidymodels"** and **"parsnip"** packages to fit the training dataset to a model. Then I used that model to predict the classification of the documents stored in the test dataset.
+
+The results of evaluating the model showed that the predictions were almost perfect, which indicates the presence of an overfitting situation here. I tried to split the training and test sets using different proportions but the result was about the same. It looks like I need to learn how to fine tune the parameters of the model that I used and probably learn other techniques to deal with overfitting.
+
+

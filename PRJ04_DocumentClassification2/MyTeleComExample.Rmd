@@ -1,0 +1,193 @@
+---
+title: "TeleComm example"
+author: "Esteban Aramayo"
+date: "5/2/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, cache.lazy = FALSE, warning = FALSE,
+                      message = FALSE, echo = TRUE, dpi = 180,
+                      fig.width = 8, fig.height = 5)
+
+```
+
+
+## Explore data
+
+
+
+
+## Data resampling
+
+The first step in a machine learning project is to create training and test datasets for model fitting and evaluation. The test dataset provides an estimate of how your model will perform on new data and helps to guard against overfitting.
+
+You will be working with the telecom_df dataset which contains information on customers of a telecommunications company. The outcome variable is canceled_service and it records whether a customer canceled their contract with the company. The predictor variables contain information about customers' cell phone and internet usage as well as their contract type and monthly charges.
+
+
+```{r}
+# Create data split object
+telecom_split <- initial_split(telecom_df, prop = 0.75,
+                     strata = canceled_service)
+
+# Create the training data
+telecom_training <- telecom_split %>% 
+  training()
+
+# Create the test data
+telecom_test <- telecom_split %>% 
+  testing()
+
+# Check the number of rows
+nrow(telecom_training)
+nrow(telecom_test)
+
+```
+
+
+## Fitting a logistic regression model
+
+
+### Specifying a logistic regression model
+
+In addition to regression models, the parsnip package also provides a general interface to classification models in R.
+
+
+```{r}
+
+# Specify a logistic regression model
+logistic_model <- logistic_reg() %>% 
+  # Set the engine
+  set_engine('glm') %>% 
+  # Set the mode
+  set_mode('classification')
+
+```
+
+
+### Model fitting
+
+In this exercise, you will define a parsnip logistic regression object and train your model to predict canceled_service using avg_call_mins, avg_intl_mins, and monthly_charges as predictor variables from the telecom_df data.
+
+```{r}
+# Fit to training data
+logistic_fit <- logistic_model %>% 
+  fit(canceled_service ~ avg_call_mins + avg_intl_mins + monthly_charges,
+      data = telecom_training)
+
+# Print model fit object
+logistic_fit
+
+```
+
+
+
+## Combining test dataset results
+
+Evaluating your model's performance on the test dataset gives insights into how well your model predicts on new data sources. These insights will help you communicate your model's value in solving problems or improving decision making.
+
+### Predicting outcome categories
+
+Before you can calculate classification metrics such as sensitivity or specificity, you must create a results tibble with the required columns for yardstick metric functions.
+
+```{r}
+# Predict outcome categories
+class_preds <- predict(logistic_fit, new_data = telecom_test,
+                       type = 'class')
+```
+
+### Estimated probabilities
+
+```{r}
+# Obtain estimated probabilities for each outcome value
+prob_preds <- predict(logistic_fit, new_data = telecom_test, 
+                      type = 'prob')
+```
+
+
+### Combining results
+
+```{r}
+# Combine test set results
+telecom_results <- telecom_test %>% 
+  select(canceled_service) %>% 
+  bind_cols(class_preds, prob_preds)
+```
+
+### View the results
+
+```{r}
+# View results tibble
+telecom_results
+```
+
+
+
+
+## Assessing model fit
+
+### Calculate the confusion matrix
+```{r}
+# Calculate the confusion matrix
+yardstick::conf_mat(telecom_results, truth = canceled_service,
+    estimate = .pred_class)
+```
+
+
+### Calculate the accuracy
+```{r}
+# Calculate the accuracy
+accuracy(telecom_results, canceled_service,
+    estimate = .pred_class)
+```
+
+
+### Calculate the sensitivity
+```{r}
+# Calculate the sensitivity
+sensitivity(telecom_results, canceled_service,
+    .pred_class)
+```
+
+
+### Calculate the specificity
+```{r}
+# Calculate the specificity
+specificity(telecom_results,canceled_service,
+    .pred_class)
+```
+
+
+### Create a custom metric function
+```{r}
+# Create a custom metric function
+telecom_metrics <- metric_set(accuracy, sens, spec)
+```
+
+### Calculate metrics using model results tibble
+```{r}
+# Calculate metrics using model results tibble
+telecom_metrics(telecom_results, truth = canceled_service,
+                estimate = .pred_class)
+```
+
+### Create a confusion matrix
+```{r}
+# Create a confusion matrix
+conf_mat(telecom_results,
+         truth = canceled_service,
+         estimate = .pred_class) %>% 
+  # Pass to the summary() function
+  summary()
+```
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/765591/82d7af0bec4e426db799827cd294a740
+bundleId: https://api.rpubs.com/api/v1/document/765591/82d7af0bec4e426db799827cd294a740
+url: http://rpubs.com/esteban_aramayo/765591/edit
+when: 1620250772.31649
