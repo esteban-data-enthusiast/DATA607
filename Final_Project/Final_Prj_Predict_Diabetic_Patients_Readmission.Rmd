@@ -1,0 +1,816 @@
+---
+title: "Final Project - Predict Hospital Readmission of Diabetic Patients"
+author: "Esteban Aramayo"
+date: "5/6/2021"
+output:
+  html_document:
+    toc: true
+    #number_sections: true
+    toc_float: true
+    collapsed: false
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(skimr)
+library(janitor)
+library(tidymodels)
+library(usemodels)
+```
+
+
+## Project Overview
+
+According to Centers for Medicare & Medicaid Services (CMS), the high levels of patient readmissions within 30 days is a big problem across the nation because it increases the health care costs and it affects the quality of care of the patients. In fact, CMS sometimes penalizes hospitals for having high readmissions. For example, in the article <a href="https://www.beckershospitalreview.com/finance/cms-fines-2-545-hospitals-for-high-readmissions-5-things-to-know.html">"CMS fines 2,545 hospitals for high readmissions: 5 things to know"</a> we can see such type of penalization.
+
+To address this problem, CMS has created programs to link the payment to the quality of hospital care, thus to incentivize hospitals to improve communication and care coordination efforts to better engage patients and caregivers on post-discharge planning. One example of that is the <a href="https://www.cms.gov/Medicare/Quality-Initiatives-Patient-Assessment-Instruments/Value-Based-Programs/HRRP/Hospital-Readmission-Reduction-Program">"Hospital Readmissions Reduction Program (HRRP)"</a> program.
+
+
+In this project I will attempt to analyze the likelihood of diabetic patients to be readmitted to a hospital within 30 days. To achieve this, I will use a dataset obtained from Kaggle, which was originally provided by the Center for Machine Learning and Intelligent Systems at University of California, Irvine, and contains over 100,000 attributes and 50 features, such as number of procedures, number of medications, and time spent in hospital, etc. I will also use two predictive models, Logistic Regression and Random Forest, which I will implement by using the "tidymodels" R package.
+
+
+Dataset:
+
+Diabetes 130 US hospitals for years 1999-2008
+Diabetes - readmission
+
+https://www.kaggle.com/brandao/diabetes
+
+
+Content
+
+"The data set represents 10 years (1999-2008) of clinical care at 130 US hospitals and integrated delivery networks. It includes over 50 features representing patient and hospital outcomes. Information was extracted from the database for encounters that satisfied the following criteria.
+
+It is an inpatient encounter (a hospital admission).
+It is a diabetic encounter, that is, one during which any kind of diabetes was entered to the system as a diagnosis.
+The length of stay was at least 1 day and at most 14 days.
+Laboratory tests were performed during the encounter.
+Medications were administered during the encounter.
+The data contains such attributes as patient number, race, gender, age, admission type, time in hospital, medical specialty of admitting physician, number of lab test performed, HbA1c test result, diagnosis, number of medication, diabetic medications, number of outpatient, inpatient, and emergency visits in the year before the hospitalization, etc."
+
+https://archive.ics.uci.edu/ml/datasets/Diabetes+130-US+hospitals+for+years+1999-2008
+
+Source
+
+The data are submitted on behalf of the Center for Clinical and Translational Research, Virginia Commonwealth University, a recipient of NIH CTSA grant UL1 TR00058 and a recipient of the CERNER data. John Clore (jclore '@' vcu.edu), Krzysztof J. Cios (kcios '@' vcu.edu), Jon DeShazo (jpdeshazo '@' vcu.edu), and Beata Strack (strackb '@' vcu.edu). This data is a de-identified abstract of the Health Facts database (Cerner Corporation, Kansas City, MO).
+
+Original source of the data set
+
+https://archive.ics.uci.edu/ml/datasets/Diabetes+130-US+hospitals+for+years+1999-2008
+
+
+## Data Collection
+
+
+### Reading data from the file
+```{r}
+diab_data <- read.csv("./diabetic_data.csv")
+```
+
+
+
+## Data Preparation
+
+
+### Exploratory Data Analysis
+
+Let's take a peak at the structure of the data
+
+```{r}
+
+skim(diab_data)
+
+```
+
+
+Let's look at the data
+
+```{r}
+head(diab_data)
+
+```
+
+
+
+
+
+
+
+### Handling missing data
+
+In this dataset, the missing values appear to be represented by either "?" or "Unknown/Invalid" values.
+
+Examples:
+
+* The "diag_2" and "weight" columns contain "?" characters, which appear to represent missing values.
+* The "race" variable contains "Unknown/Invalid" values.
+
+
+Let's estimate the percentage of missing values in each variable to determine how to handle those missing values
+
+```{r}
+
+na_strings <- c("?","Unknown/Invalid")
+
+diab_data %>%
+  tabyl(race) %>%
+    adorn_pct_formatting() %>%
+    filter(race %in% na_strings)
+
+diab_data %>%
+  tabyl(gender) %>%
+    adorn_pct_formatting() %>%
+    filter(gender %in% na_strings)
+
+diab_data %>%
+  tabyl(diag_1) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_1 %in% na_strings)
+
+diab_data %>%
+  tabyl(diag_2) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_2 %in% na_strings)
+
+diab_data %>%
+  tabyl(diag_3) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_3 %in% na_strings)
+
+diab_data %>%
+  tabyl(weight) %>%
+    adorn_pct_formatting() %>%
+    filter(weight %in% na_strings)
+
+diab_data %>%
+  tabyl(medical_specialty) %>%
+    adorn_pct_formatting() %>%
+    filter(medical_specialty %in% na_strings)
+
+diab_data %>%
+  tabyl(payer_code) %>%
+    adorn_pct_formatting() %>%
+    filter(payer_code %in% na_strings)
+
+
+diab_data %>%
+  tabyl(diag_1) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_1 %in% na_strings)
+
+
+diab_data %>%
+  tabyl(diag_2) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_2 %in% na_strings)
+
+
+diab_data %>%
+  tabyl(diag_3) %>%
+    adorn_pct_formatting() %>%
+    filter(diag_3 %in% na_strings)
+
+```
+
+
+### Removing variables with substantial missing values percentage
+
+The percentage of missing values for variables "weight" (96.9%), "medical_specialty" (49.1%), and "payer_code" (39.6%) is way too high to attempt to impute the missing values. Also, the variables "diag_2" and "diag_3" have too many missing values compared to the variable "diag_1".
+
+Therefore, since the variables above cannot be used reliably with a regression model, let's remove them from the dataframe.
+
+
+```{r}
+
+diab_data <- diab_data %>%
+  select(-c("encounter_id", "patient_nbr", "weight","medical_specialty","payer_code", "diag_2", "diag_3"))
+
+```
+
+
+### Removing variables that contain single value
+
+The variables "examide"	and "citoglipton" contain the same value for all rows, which renders them useless
+
+```{r}
+diab_data %>% count(examide)
+
+diab_data %>% count(citoglipton)
+
+diab_data %>% count(metformin.rosiglitazone)
+
+```
+
+
+Let's remove those variables
+
+```{r}
+
+diab_data <- diab_data %>%
+    select(-c("examide","citoglipton","metformin.rosiglitazone"))
+    
+```
+
+
+
+### Remove rows with missing values
+
+
+Convert "?" and "Unknown/Invalid" values to NA values, so that we can identify missing values using standard NA values
+
+
+````{r}
+
+diab_data <- diab_data %>%
+   mutate(across(where(is.character), ~na_if(., "?")))
+
+diab_data <- diab_data %>%
+   mutate(across(where(is.character), ~na_if(., "Unknown/Invalid")))
+
+```
+
+
+Let's remove all the rows with missing values (NA)
+
+```{r}
+diab_data <- na.omit(diab_data)
+```
+
+
+### Feature Engineering
+
+
+Some of the numeric variables contain small range of integer values, which could be considered as categorical values and can be better handled by R. Let's convert “Admission type”, “Discharge disposition” and “Admission source” from numeric data type to factor data type.
+
+
+```{r}
+
+diab_data$admission_type_id <- as.factor(diab_data$admission_type_id)
+diab_data$discharge_disposition_id <- as.factor(diab_data$discharge_disposition_id)
+diab_data$admission_source_id <- as.factor(diab_data$admission_source_id)
+
+# show the resulting categorical values
+levels(diab_data$admission_type_id)
+levels(diab_data$discharge_disposition_id)
+levels(diab_data$admission_source_id)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+The "Readmitted" variable contain 3 different values, which we will need to convert to binary boolean (yes/no, true/false) values to normalize help the model use it more efficiently.
+
+```{r}
+#categorize "readmitted" to 1 --patient was readmitted within 30 days, 0-- readmission after 30 days and no readmission
+diab_data$readmitted <- case_when(diab_data$readmitted %in% c(">30","NO") ~ "0", TRUE ~ "1")
+diab_data$readmitted <- as.factor(diab_data$readmitted)
+levels(diab_data$readmitted)
+```
+
+
+Let's normalize the "change" and "diabetesMed" variables and convert them to factors.
+
+```{r}
+# Normalize the "change" variable, which records a medication change took place or not. Change its data type to factor.
+diab_data$change <- case_when(diab_data$change == "Ch" ~ "1", TRUE ~ "0")
+diab_data$change <- as.factor(diab_data$change)
+
+# Normalize the "diabetesMed" variable, which records if a medication treats diabetes or not. Change its data type to factor.
+diab_data$diabetesMed <- case_when(diab_data$diabetesMed == "Yes" ~ "1", TRUE ~ "0")
+diab_data$diabetesMed <- as.factor(diab_data$diabetesMed)
+
+```
+
+
+Let's normalize the interpretation of the A1C diabetes tests.
+
+```{r}
+diab_data %>% count(A1Cresult)
+```
+
+
+
+```{r}
+
+diab_data$A1Cresult <- case_when(diab_data$A1Cresult %in% c(">7",">8") ~ "Abnorm", TRUE ~ diab_data$A1Cresult)
+diab_data$A1Cresult <- as.factor(diab_data$A1Cresult)
+levels(diab_data$A1Cresult)
+
+```
+
+
+
+Let's normalize the interpretation of the Glucose Serum diabetes tests.
+
+```{r}
+diab_data %>% count(max_glu_serum)
+```
+
+```{r}
+
+diab_data$max_glu_serum <- case_when(diab_data$max_glu_serum %in% c(">200",">300") ~ "Abnorm", TRUE ~ diab_data$max_glu_serum)
+diab_data$max_glu_serum <- as.factor(diab_data$max_glu_serum)
+levels(diab_data$max_glu_serum)
+
+```
+
+
+
+
+```{r}
+diab_data %>% count(race)
+diab_data %>% count(gender)
+diab_data %>% count(age)
+```
+
+
+Let's convert the variables "race", "gender", and "age" to factors.
+
+```{r}
+
+diab_data$race <- as.factor(diab_data$race)
+diab_data$gender <- as.factor(diab_data$gender)
+diab_data$age <- as.factor(diab_data$age)
+
+
+```
+
+
+
+Let's convert the medication-related variables to factors because they contain small range of values (levels).
+
+```{r}
+
+diab_data$metformin                <- as.factor(diab_data$metformin               )
+diab_data$repaglinide              <- as.factor(diab_data$repaglinide             )
+diab_data$nateglinide              <- as.factor(diab_data$nateglinide             )
+diab_data$chlorpropamide           <- as.factor(diab_data$chlorpropamide          )
+diab_data$glimepiride              <- as.factor(diab_data$glimepiride             )
+diab_data$acetohexamide            <- as.factor(diab_data$acetohexamide           )
+diab_data$glipizide                <- as.factor(diab_data$glipizide               )
+diab_data$glyburide                <- as.factor(diab_data$glyburide               )
+diab_data$tolbutamide              <- as.factor(diab_data$tolbutamide             )
+diab_data$pioglitazone             <- as.factor(diab_data$pioglitazone            )
+diab_data$rosiglitazone            <- as.factor(diab_data$rosiglitazone           )
+diab_data$acarbose                 <- as.factor(diab_data$acarbose                )
+diab_data$miglitol                 <- as.factor(diab_data$miglitol                )
+diab_data$troglitazone             <- as.factor(diab_data$troglitazone            )
+diab_data$tolazamide               <- as.factor(diab_data$tolazamide              )
+diab_data$insulin                  <- as.factor(diab_data$insulin                 )
+diab_data$glyburide.metformin      <- as.factor(diab_data$glyburide.metformin     )
+diab_data$glipizide.metformin      <- as.factor(diab_data$glipizide.metformin     )
+diab_data$glimepiride.pioglitazone <- as.factor(diab_data$glimepiride.pioglitazone)
+diab_data$metformin.pioglitazone   <- as.factor(diab_data$metformin.pioglitazone  )
+
+```
+
+
+Diagnosis variables have at least 700+ possible values, which we could normalize them by placing them into diagnosis categories based on the code value. This categorization reduces the amount of calculations that the models' algorithms have to perform. Without this categorization, each model is running for over an hour (at least on my laptop's hardware).
+
+Let's normalize the primary diagnosis and convert it to a factor.
+
+```{r, warning=FALSE}
+diab_data <- mutate(diab_data, diag1_norm = ifelse(str_detect(diag_1, "V") | str_detect(diag_1, "E"),"Other",
+        ifelse(str_detect(diag_1, "250"), "Diabetes",
+        ifelse((as.integer(diag_1) >= 390 & as.integer(diag_1) <= 459) | as.integer(diag_1) == 785, "Circulatory",
+        ifelse((as.integer(diag_1) >= 460 & as.integer(diag_1) <= 519) | as.integer(diag_1) == 786, "Respiratory", 
+        ifelse((as.integer(diag_1) >= 520 & as.integer(diag_1) <= 579) | as.integer(diag_1) == 787, "Digestive", 
+        ifelse((as.integer(diag_1) >= 580 & as.integer(diag_1) <= 629) | as.integer(diag_1) == 788, "Genitourinary",
+        ifelse((as.integer(diag_1) >= 140 & as.integer(diag_1) <= 239), "Neoplasms",  
+        ifelse((as.integer(diag_1) >= 710 & as.integer(diag_1) <= 739), "Musculoskeletal",          
+        ifelse((as.integer(diag_1) >= 800 & as.integer(diag_1) <= 999), "Injury",                    
+        "Other"))))))))))
+
+# convert the normalized primary diagnosis to a factor
+diab_data$diag1_norm <- as.factor(diab_data$diag1_norm)
+
+# compare mapping of diag1 to diag1_norm values
+# diab_data %>% select(diag_1, diag1_norm)
+
+# drop original "diag_1" variable
+diab_data <- diab_data %>% select(-c("diag_1"))
+
+```
+
+
+
+
+
+```{r}
+# An alternative function to normalize the diagnosis codes
+# normalizeDiagnosis <- function(diag_val) {
+#   
+#   if (is.na(diag_val)) {
+#     return(NA)
+#   } else if(diag_val[1] %in% c("E","V")) {
+#     return("Other")
+#     } else {
+#         diag_num_code <- as.integer(diag_val)
+#         }
+#   
+#   if(diag_num_code == 250) {
+#     return("Diabetes")
+#     } else if(diag_num_code <= 139) {
+#       return("Other")
+#       } else if(diag_num_code <= 279) {
+#         return("Neoplasms")
+#       } else if(diag_num_code <= 389) {
+#         return("Other")
+#       } else if(diag_num_code <= 459) {
+#         return("Circulatory")
+#       } else if(diag_num_code <= 519) {
+#         return("Respiratory")
+#       }else if(diag_num_code <= 579) {
+#         return("Digestive")
+#       }else if(diag_num_code <= 679) {
+#         return("Other")
+#       }else if(diag_num_code <= 709) {
+#         return("Neoplasms")
+#       }else if(diag_num_code <= 739) {
+#         return("Musculoskeletal")
+#       }else if(diag_num_code <= 759) {
+#         return("Other")
+#       }else if(diag_num_code %in% c(780, 781, 782, 783, 784)) {
+#         return("Neoplasms")
+#       }else if(diag_num_code == 785) {
+#         return("Circulatory")
+#       }else if(diag_num_code == 786) {
+#         return("Respiratory")
+#       }else if(diag_num_code == 787) {
+#         return("Digestive")
+#       }else if(diag_num_code == 788) {
+#         return("Genitourinary")
+#       }else if(diag_num_code <= 789) {
+#         return("Digestive")
+#       }else if(diag_num_code >= 790  & diag_num_code < 800) {
+#         return("Neoplasms")
+#       }else if(diag_num_code >= 800) {
+#         return("Injury")
+#       }else {
+#         return(diag_num_code)
+#       }
+# }
+
+
+
+
+```
+
+
+#### Excluding patients who cannot be readmitted
+
+Because we are trying to predict hospital readmissions, we cannot include those patients who either died or were sent to hospice facilities after discharge. In order to identify those patients, we will have to use the values from the "discharge_disposition_id" variable. The values of 11, 13, 14, 19, 20, or 21 are related to death or hospice.
+
+Let's remove those patient records from the dataset.
+
+```{r}
+diab_data <- diab_data[ !diab_data$discharge_disposition_id %in% c(11,13,14,19,20,21), ]
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+# Because the model fitting takes very long to execute with large datasets, I will purposely truncate the dataset
+# to keep it small, while I finish the coding. Once the code is completed, I will use the entire dataset.
+
+# diab_data <- head(diab_data, 1000)
+
+```
+
+
+
+
+
+
+
+## Data Modeling
+
+
+### Data Resampling
+
+Let's create the training and test datasets for model fitting and evaluation.
+
+Let's use 75% of the data for training the model and 25% for testing the model.
+
+
+```{r}
+
+# set a seed to make this data splitting reproducible
+set.seed(2021)
+
+# Create data split object
+diab_data_split <- initial_split(diab_data, prop = 0.75,
+                     strata = readmitted)
+
+# Create the training data
+diab_data_training <- diab_data_split %>%
+   training()
+
+# Create the test data
+diab_data_test <- diab_data_split %>%
+   testing()
+
+# Check the number of rows
+nrow(diab_data_training)
+nrow(diab_data_test)
+
+```
+
+
+
+Next, let’s create bootstrap resamples of the training data, to evaluate our models.
+
+```{r}
+
+set.seed(4123)
+diab_data_boot <- bootstraps(diab_data_training)
+diab_data_boot
+
+```
+
+
+Let’s compare two different models, a logistic regression model and a random forest model. We start by creating the model specifications.
+
+```{r}
+
+glm_spec <- logistic_reg() %>%
+  set_engine("glm")
+
+glm_spec
+
+```
+
+
+```{r}
+rf_spec <- rand_forest() %>%
+  set_mode("classification") %>%
+  set_engine("ranger")
+
+rf_spec
+```
+
+Next let’s start putting together a tidymodels workflow(), a helper object to help manage modeling pipelines with pieces that fit together like Lego blocks. Notice that there is no model yet: Model: None.
+
+
+```{r}
+
+diab_data_wf <- workflow() %>%
+  add_formula(readmitted ~ .)
+
+diab_data_wf
+```
+
+Now we can add a model, and the fit to each of the resamples. First, we can fit the logistic regression model.
+
+```{r}
+
+doParallel::registerDoParallel()
+glm_rs <- diab_data_wf %>%
+  add_model(glm_spec) %>%
+  fit_resamples(
+    resamples = diab_data_boot,
+    control = control_resamples(save_pred = TRUE)
+  )
+
+glm_rs
+
+```
+
+Second, we can fit the random forest model.
+
+
+```{r}
+
+doParallel::registerDoParallel()
+rf_rs <- diab_data_wf %>%
+  add_model(rf_spec) %>%
+  fit_resamples(
+    resamples = diab_data_boot,
+    control = control_resamples(save_pred = TRUE)
+  )
+
+rf_rs
+
+```
+
+
+We have fit each of our candidate models to our resampled training set!
+
+Evaluate model
+
+Now let’s check out how we did.
+
+Let's see the resampling results for the random forest model
+
+```{r}
+collect_metrics(rf_rs)
+```
+
+
+Let's see the resampling results for the logistic regression model
+
+```{r}
+collect_metrics(glm_rs)
+```
+
+
+Let's generate the confustion matrix for logistic regression model's resampling results
+
+```{r}
+glm_rs %>%
+  conf_mat_resampled()
+```
+
+Let's make an ROC curve.
+
+```{r, echo=FALSE}
+
+# glm_rs %>%
+#   collect_predictions() %>%
+#   group_by(id) %>%
+#   roc_curve(readmitted, .predictions) %>%
+#   ggplot(aes(1 - specificity, sensitivity, color = id)) +
+#   geom_abline(lty = 2, color = "gray80", size = 1.5) +
+#   geom_path(show.legend = FALSE, alpha = 0.6, size = 1.2) +
+#   coord_equal()
+```
+
+
+
+
+#### Evaluating on the testing data for Random Forest model
+
+Let’s fit one more time to the training data and evaluate on the testing data using the function last_fit().
+
+```{r}
+diab_data_final_rf <- diab_data_wf %>%
+  add_model(rf_spec) %>%
+  last_fit(diab_data_split)
+
+diab_data_final_rf
+```
+
+
+The metrics and predictions here are on the testing data.
+
+```{r}
+collect_metrics(diab_data_final_rf)
+```
+
+
+
+```{r}
+predictions_rand_forest <- collect_predictions(diab_data_final_rf) 
+
+predictions_rand_forest %>%
+  conf_mat(readmitted, .pred_class)
+
+
+```
+
+
+```{r}
+predictions_rand_forest %>%
+  ggplot(aes(readmitted, .pred_0, color = id)) +
+      geom_abline(lty = 2, color = "gray80", size = 1.5) +
+      geom_point(alpha = 0.3) +
+      labs(
+      x = "Truth",
+      y = "Predicted Readmission",
+      color = NULL,
+      title = "Random Forest - Predicted and True Readmissions",
+      subtitle = "Each Cross-validation Fold is Shown in a Different Color"
+      )
+```
+
+
+
+
+
+The coefficients (which we can get out using tidy()) have been estimated using the training data. If we use exponentiate = TRUE, we have odds ratios.
+
+```{r}
+
+diab_data_final_rf$.workflow[[1]]
+
+```
+
+
+
+
+
+#### Evaluating on the testing data for Logistic Regression model
+
+Let’s fit one more time to the training data and evaluate on the testing data using the function last_fit().
+
+```{r}
+diab_data_final <- diab_data_wf %>%
+  add_model(glm_spec) %>%
+  last_fit(diab_data_split)
+
+diab_data_final
+```
+
+
+The metrics and predictions here are on the testing data.
+
+```{r}
+collect_metrics(diab_data_final)
+```
+
+
+
+```{r}
+predictions_log_reg <- collect_predictions(diab_data_final) 
+
+predictions_log_reg%>%
+  conf_mat(readmitted, .pred_class)
+```
+
+
+
+```{r}
+
+predictions_log_reg %>%
+  ggplot(aes(readmitted, .pred_0, color = id)) +
+      geom_abline(lty = 2, color = "gray80", size = 1.5) +
+      geom_point(alpha = 0.3) +
+      labs(
+      x = "Truth",
+      y = "Predicted Readmission",
+      color = NULL,
+      title = "Logistic Regression - Predicted and True Readmissions",
+      subtitle = "Each Cross-validation Fold is Shown in a Different Color"
+      )
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+# The coefficients (which we can get out using tidy()) have been estimated using the training data. If we use exponentiate = TRUE, we have odds ratios.
+
+#diab_data_final$.workflow[[1]]
+
+# diab_data_final$.workflow[[1]] %>%
+#    tidy(exponentiate = TRUE)
+
+```
+
+
+
+
+
+
+Let's visualize the main factors that appear to affect the patient readmissions.
+
+
+```{r}
+
+diab_data %>%
+  filter(!is.na(readmitted)) %>%
+  ggplot(aes(number_inpatient, number_diagnoses, color = readmitted, size = num_procedures)) +
+  geom_point(alpha = 0.5) 
+
+```
+
+
+
+
+## Conclusions
+
+The goal of this project was to determine the likelihood of diabetic patients to be readmitted to the hospital within 30 days. To achieve the goal machine learning algorithms were used, in particular two models were used, Logistic Regression and Random Forest.
+
+The chosen dataset used to train and fit the models included features related to clinical procedures, lab procedures, diagnoses, length of stay, number of past readmissions, demographics, medications, and critical diabetes test results such as A1C and Glucose Serum.
+
+The Random Forest model proved to provide better results based on accuracy and confusion matrix.
+
+From the results, some of the main contributing factors for patient readmission appear to be the number times a patient was readmitted to the hospital in the past, the number of procedures performed, and the number of diagnosis. Other secondary factors appear to be the result values of the A1C and Glucose Serum lab tests.
+
+Therefore, based on the results, it appears that it is important to avoid the readmission of patients to the hospital perhaps by providing the necessary care and follow up of the patient after he/she leaves the hospital. Also, pay attention to the number of procedures performed at the hospital and the number of diagnosis recorded, for it might be necessary to address other additional illnesses that might increase the patients's chance of going back to the hospital.
+
+
+
+
